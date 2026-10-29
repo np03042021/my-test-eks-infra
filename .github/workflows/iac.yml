@@ -26,6 +26,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # used to list PR commits; no license needed for personal accounts
           GITLEAKS_ENABLE_COMMENTS: "false"           # would need pull-requests: write; the failed check is enough
+          GITLEAKS_VERSION: "8.30.1"                 # pin the scanner too; the action's default (8.24.3) drifted from local pre-commit
 
   terraform:
     runs-on: ubuntu-latest

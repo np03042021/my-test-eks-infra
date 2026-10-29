@@ -62,7 +62,7 @@ def test_icmp_open_to_world_is_flagged():
 
 # ------------------------------------------------------------ IAM access keys
 
-def key(days_old, status="Active", key_id="AKIAEXAMPLEKEY123456"):
+def key(days_old, status="Active", key_id="TESTKEYID00000003456"):
     return {"UserName": "alice", "AccessKeyId": key_id, "Status": status,
             "CreateDate": NOW - timedelta(days=days_old)}
 
@@ -74,7 +74,7 @@ def test_active_key_older_than_90_days_is_flagged():
 
 def test_key_id_is_masked_in_findings():
     [f] = handler.find_stale_access_keys([key(200)], now=NOW)
-    assert f["access_key_id"] == "AKIA...3456"
+    assert f["access_key_id"] == "TEST...3456"
 
 
 def test_inactive_old_key_is_ignored():
