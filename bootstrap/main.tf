@@ -19,6 +19,10 @@ locals {
   account_id   = data.aws_caller_identity.current.account_id
   state_bucket = "spr-tfstate-${local.account_id}"
   github_oidc  = "token.actions.githubusercontent.com"
+
+  # Immutable OIDC subject prefixes (owner and repo pinned by numeric ID, not just by name).
+  app_repo_sub   = "repo:${var.github_owner}@${var.github_owner_id}/${var.app_repo}@${var.app_repo_id}"
+  infra_repo_sub = "repo:${var.github_owner}@${var.github_owner_id}/${var.infra_repo}@${var.infra_repo_id}"
 }
 
 ############################################
@@ -183,7 +187,7 @@ data "aws_iam_policy_document" "ecr_push_trust" {
     condition {
       test     = "StringEquals" # exact match, never StringLike with wildcards
       variable = "${local.github_oidc}:sub"
-      values   = ["repo:${var.github_owner}/${var.app_repo}:environment:production"]
+      values   = ["${local.app_repo_sub}:environment:production"]
     }
   }
 }
@@ -248,7 +252,7 @@ data "aws_iam_policy_document" "plan_trust" {
     condition {
       test     = "StringEquals"
       variable = "${local.github_oidc}:sub"
-      values   = ["repo:${var.github_owner}/${var.infra_repo}:pull_request"]
+      values   = ["${local.infra_repo_sub}:pull_request"]
     }
   }
 }
