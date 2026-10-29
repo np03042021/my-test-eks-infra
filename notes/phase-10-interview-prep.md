@@ -95,6 +95,7 @@ Repos:
 | 10 | First release: `AssumeRoleWithWebIdentity` denied. CloudTrail showed GitHub's **immutable ID-pinned subject**; tightened the trust policy to it | read the evidence (CloudTrail), fix stricter not looser |
 | 11 | Maven Central rate-limited the runner during Trivy SCA → resolve deps first | CI must be a good citizen of shared infra |
 | 12 | Auto mode refused to let the AI mint a deploy key or apply an IAM change — a human did | AI writes, humans hold credentials and approve prod |
+| 14 | Argo CD served a cached failed render after the first digest commit → hard refresh; prod: Git webhook | know your GitOps controller's caching |
 | 13 | trivy-action hijacked (March 2026) → tools installed from binaries with **hashes pinned in the repo** | a release's own checksum file can be forged by whoever controls the release |
 
 Pick 3 to lead with: **#10** (cloud IAM + forensics), **#1 or #2** (supply chain), **#3/#12** (AI verification & governance).

@@ -1,8 +1,7 @@
 # Phase 6: GitHub settings, CI gates, gated release, first PR and deploy (repo: secure-paved-road-eks)
 
-**Status (2026-10-29):** settings + ruleset + workflows done; PR #1 all 7 checks green and mergeable.
-**Waiting on the user:** create the release deploy key (auto mode blocked Claude from creating a write credential),
-then merge PR #1, approve the `production` deployment, Argo CD sync, ALB smoke test.
+**Status (2026-10-29): ✅ done.** PR #1 merged → ci green on main → release approved → image pushed → digest
+committed by the bot → Argo CD Synced/Healthy → ALB smoke test passed.
 
 ## GitHub settings applied (app repo)
 
@@ -131,15 +130,41 @@ How it would be wired (for a whiteboard question):
 - PR #1, second run: gitleaks, maven-verify, codeql, trivy-fs, chart, checkov, image all **pass**;
   merge state CLEAN / MERGEABLE.
 
-## Remaining steps (fill in after deploy)
+## End-to-end result (2026-10-29)
 
-1. User creates deploy key (commands in chat / below).
-2. Squash-merge PR #1 → ci on main → release waits for approval.
-3. User approves `production` → image pushed, digest committed.
-4. Argo CD syncs spr-app → ALB → smoke test.
+| Step | Evidence |
+|---|---|
+| PR #1 | 7 required checks green, squash-merged as `799590b` |
+| ci on main | 7/7 success |
+| release attempt 1 | approved → **failed at OIDC** (immutable-subject mismatch, story 5) |
+| release attempt 2 | approved after the trust fix → **success** |
+| ECR | tag `799590b62a35…` → `sha256:146b6b6b161f35a9a085f0ca4e280a3454d107dfb380f38f1ad2673ba6aeacb1` |
+| Digest commit | `937d825` by github-actions[bot]: `chore(release): deploy 799590b (sha256:146b6b6b161f)` |
+| Loop guard | **0** workflow runs on `937d825` |
+| Argo CD | `Synced / Healthy` at `937d825` (needed a hard refresh, story 6) |
+| Pods | 2/2 Running on **different nodes**, image `…/secure-paved-road-app@sha256:146b6b6b…` |
+| ExternalSecret | `SecretSynced True` (ClusterSecretStore aws-secrets-manager) |
+| Namespace | PSS enforce = restricted |
+| ALB | `k8s-sprapp-sprapp-dbb5c5dbb8-….ap-south-1.elb.amazonaws.com`, `drop_invalid_header_fields=true`, targets = pod IPs :8080 |
+
+Smoke test through the ALB:
+
+| Request | Result |
+|---|---|
+| `/api/hello?name=Nikhil` | 200 `{"message":"Hello from the secure paved road, Nikhil"}` — prefix from Secrets Manager → ESO → file → configtree |
+| `/api/hello` | 200 `…, World` |
+| `/api/hello?name=<script>…` | 400 problem+json, input not echoed |
+| `/actuator/health` | 200 `{"status":"UP"}` (+ probe group names, no components) |
+| `/actuator/env`, `/actuator/heapdump` | 404 |
+
+6. **Argo CD showed `ComparisonError … (cached)` after the digest commit.** Argo caches a failed manifest render
+   (from when the digest was empty) and didn't re-render on its own. Fix: hard refresh
+   (`kubectl -n argocd annotate application spr-app argocd.argoproj.io/refresh=hard --overwrite`) → Synced/Healthy.
+   Production fix: a Git webhook to Argo CD, so pushes trigger an immediate refresh.
+
+## Deploy-key commands used (run by the user)
 
 ```bash
-# Deploy key (run by the user, from any directory)
 R=np03042021/secure-paved-road-eks
 K="$(mktemp -d)/release_deploy_key"
 ssh-keygen -q -t ed25519 -N "" -C "release.yml digest commits" -f "$K"
