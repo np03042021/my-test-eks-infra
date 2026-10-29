@@ -34,6 +34,5 @@ results.sarif
 .idea/
 .vscode/
 
-# Local-only project notes and interview prep (personal details; never published)
+# Local-only Claude context file (contains personal details; never published)
 CLAUDE.md
-notes/

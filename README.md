@@ -22,6 +22,7 @@ needs to ship a container safely, with security turned on by default:
 | `infra/auditor/` | Lambda source, pytest suite, hash-pinned dev lockfile | n/a |
 | `k8s-bootstrap/` | `ClusterSecretStore`, Argo CD `AppProject` and `Application` | applied by `up.sh` |
 | `scripts/` | `up.sh`, `down.sh`, `verify-tools.sh` | n/a |
+| `notes/` | Build log for every phase of both repos: decisions, verification evidence, problems hit, and interview prep | n/a |
 
 ## Usage
 
