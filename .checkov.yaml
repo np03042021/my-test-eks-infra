@@ -1,0 +1,16 @@
+# Checkov config for this repo. Run locally: checkov --config-file .checkov.yaml
+# Policy: fix first, suppress second. Resource-specific suppressions live INLINE next to the resource
+# (#checkov:skip=ID:reason) so their scope is one resource. Only repo-wide justifications live here.
+directory:
+  - .
+framework:
+  - terraform
+  - github_actions
+compact: true
+quiet: true
+# Don't scan inside third-party registry modules; we scan our own code and review module inputs.
+download-external-modules: false
+skip-check:
+  # Modules are pinned to exact registry versions (e.g. 21.29.0), not git SHAs. Terraform has no module
+  # lock file, so prod alternative: mirror modules to a private registry or use git::...?ref=<sha>.
+  - CKV_TF_1

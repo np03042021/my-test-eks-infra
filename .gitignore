@@ -1,0 +1,39 @@
+# Terraform: state can contain secrets and account details; never commit it.
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+crash.*.log
+*.tfplan
+tfplan
+# Variable files often hold environment-specific or sensitive values.
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# NOTE: .terraform.lock.hcl IS committed: it pins provider versions and hashes.
+
+# Build output (Lambda zip)
+build/
+*.zip
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Scanner output
+results.sarif
+*.sarif
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Local-only project notes and interview prep (personal details; never published)
+CLAUDE.md
+notes/

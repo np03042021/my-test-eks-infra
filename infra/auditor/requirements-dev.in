@@ -1,0 +1,4 @@
+# Test-only dependencies for the auditor. The Lambda itself has no third-party deps (boto3 is in the runtime).
+# Regenerate the hashed lockfile with Python 3.12 (same as the Lambda runtime):
+#   pip-compile --generate-hashes --strip-extras --output-file=requirements-dev.txt requirements-dev.in
+pytest

@@ -1,0 +1,101 @@
+name: iac
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Default for every job: no token permissions. Each job opts in to exactly what it needs.
+permissions: {}
+
+concurrency:
+  group: iac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history: a secret removed in a later commit is still leaked
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # used to list PR commits; no license needed for personal accounts
+          GITLEAKS_ENABLE_COMMENTS: "false"           # would need pull-requests: write; the failed check is enough
+
+  terraform:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [bootstrap, infra]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.4
+          terraform_wrapper: false
+      - name: terraform fmt
+        run: terraform -chdir=${{ matrix.stack }} fmt -check -recursive -diff
+      # -backend=false: no AWS credentials in this job; validate checks syntax, types and module inputs.
+      # -lockfile=readonly: fail if the committed .terraform.lock.hcl doesn't match (provider tampering/drift).
+      - name: terraform init
+        run: terraform -chdir=${{ matrix.stack }} init -backend=false -input=false -lockfile=readonly
+      - name: terraform validate
+        run: terraform -chdir=${{ matrix.stack }} validate
+
+  checkov:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to the Security tab
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkov (Terraform + GitHub Actions)
+        uses: bridgecrewio/checkov-action@c3e106d5f8f4253a6de5110efb41a080f83db294 # v12.3135.0 (checkov 3.3.30)
+        with:
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+      - name: Upload SARIF
+        if: success() || failure() # upload findings even when the gate fails
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: results.sarif
+          category: checkov
+
+  auditor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra/auditor
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12" # same as the Lambda runtime
+      # --require-hashes: every downloaded artifact must match the lockfile hash.
+      # --only-binary: wheels only, so no package build scripts run on the runner.
+      - name: Install test deps (hash-pinned)
+        run: python -m pip install --require-hashes --only-binary ':all:' -r requirements-dev.txt
+      - name: pytest
+        run: python -m pytest -q
+      - name: pip-audit (known CVEs in the lockfile)
+        uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
+        with:
+          inputs: infra/auditor/requirements-dev.txt
+          require-hashes: true
